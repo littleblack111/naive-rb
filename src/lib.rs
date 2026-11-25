@@ -1,5 +1,4 @@
 #![feature(default_field_values)]
-#![feature(const_convert)]
 #![feature(nonpoison_rwlock)]
 #![feature(nonpoison_condvar)]
 #![feature(nonpoison_mutex)]
