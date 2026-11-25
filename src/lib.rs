@@ -40,7 +40,7 @@ impl<T, const N: usize> RingBuffer<T, N> {
             self.cursor += 1;
         }
         *guard = item;
-        // TODO: add the notify
+        self.condvar.notify_all();
     }
 }
 
