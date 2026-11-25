@@ -17,8 +17,6 @@ use std::{
 #[expect(unevaluated_default_field_value)]
 pub struct RingBuffer<T, const N: usize> {
 	buf: RwLock<[T; N]> = RwLock::new([const { unsafe { MaybeUninit::uninit().assume_init() } }; N]),
-    // TODO: optimize this wasted 7bits
-    lapped: bool = false,
     /// writer
     cursor: usize = 0,
     /// reader's
@@ -38,7 +36,6 @@ impl<T, const N: usize> RingBuffer<T, N> {
         let guard = &mut self.buf.write()[self.cursor];
         if self.cursor >= N {
             self.cursor = 0;
-            // self.lapped = true;
         } else {
             self.cursor += 1;
         }

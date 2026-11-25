@@ -14,20 +14,19 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
     type Item = MappedRwLockReadGuard<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.parent.lapped && self.cursor >= self.parent.cursor {
+        if self.cursor == self.parent.cursor {
             self.condvar.wait_while(
                 &mut self.mutex.lock(),
-                |_| self.parent.lapped || self.cursor < self.parent.cursor,
+                // we're just betting writer won't get to next lap before we
+                // unpark
+                |_| self.cursor < self.parent.cursor,
             );
         }
-        // i'm pretty sure this is supposed to only be set by the last reader
-        // self.parent.lapped = false;
         let i = RwLockReadGuard::map(
             self.parent.buf.read(),
             |buf| &buf[&self.cursor - 1],
         );
         if self.cursor >= N {
-            // self.parent.lapped = false;
             self.cursor = 0;
         } else {
             self.cursor += 1;
