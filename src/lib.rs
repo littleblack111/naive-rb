@@ -18,7 +18,6 @@ use std::{
 pub struct RingBuffer<T, const N: usize> {
 	buf: RwLock<[T; N]> = RwLock::new([const { unsafe { MaybeUninit::uninit().assume_init() } }; N]),
     // TODO: optimize this wasted 7bits
-    // TODO: maybe remove im not sure how is the reader supposed to propagate back to the writer
     lapped: bool = false,
     /// writer
     cursor: usize = 0,
@@ -37,8 +36,14 @@ impl<T, const N: usize> RingBuffer<T, N> {
 
     pub fn push(&mut self, item: T) {
         let guard = &mut self.buf.write()[self.cursor];
-        self.cursor += 1;
+        if self.cursor >= N {
+            self.cursor = 0;
+            // self.lapped = true;
+        } else {
+            self.cursor += 1;
+        }
         *guard = item;
+        // TODO: add the notify
     }
 }
 
