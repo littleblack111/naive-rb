@@ -10,7 +10,10 @@ pub mod iter;
 
 use std::{
     mem::MaybeUninit,
-    sync::nonpoison::{Condvar, RwLock},
+    sync::{
+        Arc,
+        nonpoison::{Condvar, Mutex, RwLock},
+    },
 };
 
 /// Multiple reader, single writer
@@ -20,16 +23,27 @@ pub struct RingBuffer<T, const N: usize> {
     /// writer
     cursor: usize = 0,
     /// reader's
-    condvar: Condvar = Condvar::new(),
+    condvar: Arc<(Condvar, Mutex<()>)>  ,
 }
 
 impl<T, const N: usize> RingBuffer<T, N> {
     pub fn new() -> Self {
-        Self { .. }
+        Self {
+            condvar: Arc::new(
+                (
+                    Condvar::new(),
+                    Mutex::new(()),
+                ),
+            ),
+            ..
+        }
     }
 
     pub fn iter(&self) -> iter::RingBufferIter<'_, T, N> {
-        iter::RingBufferIter::new(self)
+        iter::RingBufferIter::new(
+            self,
+            Arc::clone(&self.condvar),
+        )
     }
 
     pub fn push(&mut self, item: T) {
@@ -40,7 +54,7 @@ impl<T, const N: usize> RingBuffer<T, N> {
             self.cursor += 1;
         }
         *guard = item;
-        self.condvar.notify_all();
+        self.condvar.0.notify_all();
     }
 }
 

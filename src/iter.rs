@@ -1,4 +1,7 @@
-use std::sync::nonpoison::{Condvar, MappedRwLockReadGuard, Mutex, RwLockReadGuard};
+use std::sync::{
+    Arc,
+    nonpoison::{Condvar, MappedRwLockReadGuard, Mutex, RwLockReadGuard},
+};
 
 use crate::RingBuffer;
 
@@ -6,8 +9,7 @@ use crate::RingBuffer;
 pub struct RingBufferIter<'a, T, const N: usize> {
     parent: &'a RingBuffer<T, N>,
     cursor: usize = 0,
-    condvar: Condvar = Condvar::new(),
-    mutex: Mutex<()> = Mutex::new(()),
+    condvar: Arc<(Condvar , Mutex<()>)>
 }
 
 impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
@@ -15,8 +17,10 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor == self.parent.cursor {
-            self.condvar.wait_while(
-                &mut self.mutex.lock(),
+            let (condvar, mutex) = &*self.condvar;
+
+            condvar.wait_while(
+                &mut mutex.lock(),
                 // we're just betting writer won't get to next lap before we
                 // unpark
                 |_| self.cursor < self.parent.cursor,
@@ -36,9 +40,16 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
 }
 
 impl<'a, T, const N: usize> RingBufferIter<'a, T, N> {
-    pub(crate) fn new(parent: &'a RingBuffer<T, N>) -> Self {
+    pub(crate) fn new(
+        parent: &'a RingBuffer<T, N>,
+        condvar: Arc<(
+            Condvar,
+            Mutex<()>,
+        )>,
+    ) -> Self {
         Self {
             parent,
+            condvar,
             ..
         }
     }
