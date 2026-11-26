@@ -16,20 +16,18 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
     type Item = MappedRwLockReadGuard<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cursor == self.parent.cursor {
+        let pc = self.parent.cursor.lock();
+        if self.cursor == *pc {
             let (condvar, mutex) = &*self.condvar;
 
             condvar.wait_while(
                 &mut mutex.lock(),
                 // we're just betting writer won't get to next lap before we
                 // unpark
-                |_| self.cursor < self.parent.cursor,
+                |_| self.cursor < *pc,
             );
         }
-        let i = RwLockReadGuard::map(
-            self.parent.buf.read(),
-            |buf| &buf[&self.cursor - 1],
-        );
+        let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[&self.cursor - 1]);
         if self.cursor >= N {
             self.cursor = 0;
         } else {
@@ -40,13 +38,7 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
 }
 
 impl<'a, T, const N: usize> RingBufferIter<'a, T, N> {
-    pub(crate) fn new(
-        parent: &'a RingBuffer<T, N>,
-        condvar: Arc<(
-            Condvar,
-            Mutex<()>,
-        )>,
-    ) -> Self {
+    pub(crate) fn new(parent: &'a RingBuffer<T, N>, condvar: Arc<(Condvar, Mutex<()>)>) -> Self {
         Self {
             parent,
             condvar,

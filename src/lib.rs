@@ -20,7 +20,7 @@ use std::{
 pub struct RingBuffer<T, const N: usize> {
 	buf: RwLock<[T; N]> = RwLock::new([const { unsafe { MaybeUninit::uninit().assume_init() } }; N]),
     /// writer
-    cursor: usize = 0,
+    cursor: Mutex<usize> = Mutex::new(0),
     /// reader's
     condvar: Arc<(Condvar, Mutex<()>)>  ,
 }
@@ -28,29 +28,22 @@ pub struct RingBuffer<T, const N: usize> {
 impl<T, const N: usize> RingBuffer<T, N> {
     pub fn new() -> Self {
         Self {
-            condvar: Arc::new(
-                (
-                    Condvar::new(),
-                    Mutex::new(()),
-                ),
-            ),
+            condvar: Arc::new((Condvar::new(), Mutex::new(()))),
             ..
         }
     }
 
     pub fn iter(&self) -> iter::RingBufferIter<'_, T, N> {
-        iter::RingBufferIter::new(
-            self,
-            Arc::clone(&self.condvar),
-        )
+        iter::RingBufferIter::new(self, Arc::clone(&self.condvar))
     }
 
-    pub fn push(&mut self, item: T) {
-        let guard = &mut self.buf.write()[self.cursor];
-        if self.cursor >= N {
-            self.cursor = 0;
+    pub fn push(&self, item: T) {
+        let mut c = self.cursor.lock();
+        let guard = &mut self.buf.write()[*c];
+        if *c >= N {
+            *c = 0;
         } else {
-            self.cursor += 1;
+            *c += 1;
         }
         *guard = item;
         self.condvar.0.notify_all();
