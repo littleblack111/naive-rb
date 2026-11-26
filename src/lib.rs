@@ -40,7 +40,8 @@ impl<T, const N: usize> RingBuffer<T, N> {
     pub fn push(&self, item: T) {
         let mut c = self.cursor.lock();
         let guard = &mut self.buf.write()[*c];
-        if *c >= N {
+
+        if *c >= N - 1 {
             *c = 0;
         } else {
             *c += 1;
