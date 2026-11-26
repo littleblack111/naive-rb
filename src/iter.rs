@@ -5,26 +5,23 @@ use std::sync::{
 
 use crate::RingBuffer;
 
-#[expect(unevaluated_default_field_value)]
 pub struct RingBufferIter<'a, T, const N: usize> {
     parent: &'a RingBuffer<T, N>,
     cursor: usize = 0,
-    condvar: Arc<(Condvar , Mutex<()>)>
+    condvar: Arc<Condvar>
 }
 
 impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
     type Item = MappedRwLockReadGuard<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let pc = self.parent.cursor.lock();
+        let mut pc = self.parent.cursor.lock();
         if self.cursor == *pc {
-            let (condvar, mutex) = &*self.condvar;
-
-            condvar.wait_while(
-                &mut mutex.lock(),
+            self.condvar.wait_while(
+                &mut pc,
                 // we're just betting writer won't get to next lap before we
                 // unpark
-                |_| self.cursor < *pc,
+                |pc| self.cursor < *pc,
             );
         }
         let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[&self.cursor - 1]);
@@ -38,7 +35,7 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
 }
 
 impl<'a, T, const N: usize> RingBufferIter<'a, T, N> {
-    pub(crate) fn new(parent: &'a RingBuffer<T, N>, condvar: Arc<(Condvar, Mutex<()>)>) -> Self {
+    pub(crate) fn new(parent: &'a RingBuffer<T, N>, condvar: Arc<Condvar>) -> Self {
         Self {
             parent,
             condvar,

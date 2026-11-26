@@ -22,13 +22,13 @@ pub struct RingBuffer<T, const N: usize> {
     /// writer
     cursor: Mutex<usize> = Mutex::new(0),
     /// reader's
-    condvar: Arc<(Condvar, Mutex<()>)>  ,
+    condvar: Arc<Condvar> ,
 }
 
 impl<T, const N: usize> RingBuffer<T, N> {
     pub fn new() -> Self {
         Self {
-            condvar: Arc::new((Condvar::new(), Mutex::new(()))),
+            condvar: Arc::new(Condvar::new()),
             ..
         }
     }
@@ -46,9 +46,15 @@ impl<T, const N: usize> RingBuffer<T, N> {
             *c += 1;
         }
         *guard = item;
-        self.condvar.0.notify_all();
+        self.condvar.notify_all();
     }
 }
+
+// impl<T, const N: usize> From<RingBuffer<T, N>> for Vec<T> {
+//     fn from(value: RingBuffer<T, N>) -> Self {
+//         value.iter().collect()
+//     }
+// }
 
 impl<T, const N: usize> Default for RingBuffer<T, N> {
     fn default() -> Self {
