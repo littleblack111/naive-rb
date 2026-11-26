@@ -24,6 +24,10 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
                 |pc| self.cursor < *pc,
             );
         }
+        if *pc == N {
+            return None;
+        }
+
         let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[&self.cursor - 1]);
 
         if self.cursor >= N - 1 {
@@ -31,6 +35,7 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
         } else {
             self.cursor += 1;
         }
+
         Some(i)
     }
 }

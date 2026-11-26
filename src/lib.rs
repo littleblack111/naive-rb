@@ -46,7 +46,16 @@ impl<T, const N: usize> RingBuffer<T, N> {
         } else {
             *c += 1;
         }
+
         *guard = item;
+
+        self.condvar.notify_all();
+    }
+}
+
+impl<T, const N: usize> Drop for RingBuffer<T, N> {
+    fn drop(&mut self) {
+        *self.cursor.get_mut() = N;
         self.condvar.notify_all();
     }
 }
