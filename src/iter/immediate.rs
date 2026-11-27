@@ -1,4 +1,7 @@
-use std::sync::nonpoison::{MappedRwLockReadGuard, RwLockReadGuard};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::nonpoison::{MappedRwLockReadGuard, RwLockReadGuard},
+};
 
 use crate::iter::RingBufferIter;
 
@@ -31,5 +34,19 @@ impl<'a, T, const N: usize> Iterator for RingBufferIterImmediate<'a, T, N> {
         self.parent.adv();
 
         Some(i)
+    }
+}
+
+impl<'a, T, const N: usize> DerefMut for RingBufferIterImmediate<'a, T, N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.parent
+    }
+}
+
+impl<'a, T, const N: usize> Deref for RingBufferIterImmediate<'a, T, N> {
+    type Target = RingBufferIter<'a, T, N>;
+
+    fn deref(&self) -> &Self::Target {
+        self.parent
     }
 }
