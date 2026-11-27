@@ -2,18 +2,20 @@ pub mod immediate;
 
 use std::sync::{
     Arc,
-    nonpoison::{Condvar, MappedRwLockReadGuard, Mutex, RwLockReadGuard},
+    nonpoison::{Condvar, MappedRwLockReadGuard, RwLockReadGuard},
 };
 
 use crate::{RingBuffer, iter::immediate::RingBufferIterImmediate};
 
+#[expect(unevaluated_default_field_value)]
 pub struct RingBufferIter<'a, T, const N: usize> {
     parent: &'a RingBuffer<T, N>,
     cursor: usize = 0,
     condvar: Arc<Condvar>
 }
 
-/// Most of the functions such as .collect will never return(at least in the current design as this requires &parent so parent can't be dropped)
+/// Most of the functions such as .collect will never return(at least in the
+/// current design as this requires &parent so parent can't be dropped)
 /// but if parent is dropped this should return
 impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
     type Item = MappedRwLockReadGuard<'a, T>;
@@ -23,16 +25,18 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
         if self.cursor == *pc {
             self.condvar.wait_while(
                 &mut pc,
-                // we're just betting writer won't get to next lap before we
-                // unpark
-                |pc| self.cursor < *pc,
+                // just hope we don't get lapped ig
+                |pc| self.cursor == *pc,
             );
         }
         if *pc == N {
             return None;
         }
 
-        let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[self.cursor]);
+        let i = RwLockReadGuard::map(
+            self.parent.buf.read(),
+            |buf| &buf[self.cursor],
+        );
 
         self.adv();
 
@@ -55,7 +59,10 @@ impl<'a, T, const N: usize> RingBufferIter<'a, T, N> {
             return None;
         }
 
-        let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[self.cursor]);
+        let i = RwLockReadGuard::map(
+            self.parent.buf.read(),
+            |buf| &buf[self.cursor],
+        );
 
         self.adv();
 
