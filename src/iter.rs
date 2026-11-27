@@ -1,9 +1,6 @@
 pub mod immediate;
 
-use std::sync::{
-    Arc,
-    nonpoison::{Condvar, MappedRwLockReadGuard, RwLockReadGuard},
-};
+use std::sync::nonpoison::{Condvar, MappedRwLockReadGuard, RwLockReadGuard};
 
 use crate::{RingBuffer, iter::immediate::RingBufferIterImmediate};
 
@@ -11,7 +8,7 @@ use crate::{RingBuffer, iter::immediate::RingBufferIterImmediate};
 pub struct RingBufferIter<'a, T, const N: usize> {
     parent: &'a RingBuffer<T, N>,
     cursor: usize = 0,
-    condvar: Arc<Condvar>
+    condvar: &'a Condvar
 }
 
 /// Most of the functions such as .collect will never return(at least in the
@@ -45,7 +42,7 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
 }
 
 impl<'a, T, const N: usize> RingBufferIter<'a, T, N> {
-    pub(crate) fn new(parent: &'a RingBuffer<T, N>, condvar: Arc<Condvar>) -> Self {
+    pub(crate) fn new(parent: &'a RingBuffer<T, N>, condvar: &'a Condvar) -> Self {
         Self {
             parent,
             condvar,
