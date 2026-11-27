@@ -8,7 +8,7 @@
 pub mod iter;
 
 use std::{
-    mem::MaybeUninit,
+    mem::zeroed,
     sync::{
         Arc,
         nonpoison::{Condvar, Mutex, RwLock},
@@ -18,7 +18,7 @@ use std::{
 /// Multiple reader, single writer
 #[expect(unevaluated_default_field_value)]
 pub struct RingBuffer<T, const N: usize> {
-	buf: RwLock<[T; N]> = RwLock::new([const { unsafe { MaybeUninit::uninit().assume_init() } }; N]),
+	buf: RwLock<[T; N]> = RwLock::new([const { unsafe { zeroed()} }; N]),
     /// writer
     cursor: Mutex<usize> = Mutex::new(0),
     /// reader's
