@@ -34,7 +34,10 @@ impl<T, const N: usize> RingBuffer<T, N> {
     }
 
     pub fn iter(&self) -> iter::RingBufferIter<'_, T, N> {
-        iter::RingBufferIter::new(self, Arc::clone(&self.condvar))
+        iter::RingBufferIter::new(
+            self,
+            Arc::clone(&self.condvar),
+        )
     }
 
     pub fn push(&self, item: T) {

@@ -8,7 +8,9 @@ pub struct RingBufferIterImmediate<'a, T, const N: usize> {
 
 impl<'a, T, const N: usize> RingBufferIterImmediate<'a, T, N> {
     pub fn new(parent: &'a mut RingBufferIter<'a, T, N>) -> Self {
-        Self { parent }
+        Self {
+            parent,
+        }
     }
 }
 
@@ -21,9 +23,10 @@ impl<'a, T, const N: usize> Iterator for RingBufferIterImmediate<'a, T, N> {
             return None;
         }
 
-        let i = RwLockReadGuard::map(self.parent.parent.buf.read(), |buf: &[T; N]| {
-            &buf[self.parent.cursor]
-        });
+        let i = RwLockReadGuard::map(
+            self.parent.parent.buf.read(),
+            |buf: &[T; N]| &buf[self.parent.cursor],
+        );
 
         self.parent.adv();
 
