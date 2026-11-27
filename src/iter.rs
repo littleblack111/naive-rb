@@ -11,6 +11,8 @@ pub struct RingBufferIter<'a, T, const N: usize> {
     condvar: Arc<Condvar>
 }
 
+/// Most of the functions such as .collect will never return(at least in the current design as this requires &parent so parent can't be dropped)
+/// but if parent is dropped this should return
 impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
     type Item = MappedRwLockReadGuard<'a, T>;
 
@@ -28,13 +30,9 @@ impl<'a, T, const N: usize> Iterator for RingBufferIter<'a, T, N> {
             return None;
         }
 
-        let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[&self.cursor - 1]);
+        let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[self.cursor]);
 
-        if self.cursor >= N - 1 {
-            self.cursor = 0;
-        } else {
-            self.cursor += 1;
-        }
+        self.adv();
 
         Some(i)
     }
@@ -49,13 +47,26 @@ impl<'a, T, const N: usize> RingBufferIter<'a, T, N> {
         }
     }
 
-    //     pub fn poll(&mut self) -> Option<T> {
-    //         if self.cursor < self.parent.cursor && !self.parent.lapped {
-    //             let i = &self.parent.buf.read()[self.cursor];
-    //             self.cursor += 1;
-    //             Some(i)
-    //         } else {
-    //             None
-    //         }
-    //     }
+    pub fn poll(&mut self) -> Option<MappedRwLockReadGuard<'_, T>> {
+        {
+            let pc = self.parent.cursor.lock();
+            if self.cursor == *pc || *pc == N {
+                return None;
+            }
+
+            let i = RwLockReadGuard::map(self.parent.buf.read(), |buf| &buf[self.cursor]);
+
+            self.adv();
+
+            Some(i)
+        }
+    }
+
+    fn adv(&mut self) {
+        if self.cursor >= N - 1 {
+            self.cursor = 0;
+        } else {
+            self.cursor += 1;
+        }
+    }
 }
